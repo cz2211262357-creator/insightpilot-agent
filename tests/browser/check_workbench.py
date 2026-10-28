@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -63,6 +64,26 @@ def process(command, env, log, ready_url, cwd):
                 except subprocess.TimeoutExpired:
                     owned.kill()
                     owned.wait(timeout=5)
+
+
+def browser_failure_summary(log: str) -> str:
+    """Describe failure categories and test line numbers without printing private log text."""
+    categories = (
+        (
+            "browser_launch_closed",
+            "browserType.launch: Target page, context or browser has been closed",
+        ),
+        ("browser_launch_error", "browserType.launch:"),
+        ("browser_dependency_missing", "Host system is missing dependencies"),
+        ("executable_missing", "Executable doesn't exist"),
+        ("module_not_found", "ERR_MODULE_NOT_FOUND"),
+        ("timeout", "TimeoutError:"),
+        ("assertion", "AssertionError"),
+    )
+    matches = [name for name, text in categories if text in log]
+    lines = re.findall(r"workbench\.mjs:(\d{1,5}):(\d{1,5})", log)
+    location = " ".join(f"workbench.mjs:{line}:{column}" for line, column in lines[:3])
+    return " ".join([*(matches or ["unknown_browser_failure"]), location]).strip()
 
 
 def test_real_browser_owned_workbench(agent_case, workspace_root):
@@ -184,7 +205,9 @@ def test_real_browser_owned_workbench(agent_case, workspace_root):
                 timeout=180,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
-        assert result.returncode == 0, "Browser flow failed; inspect owned private browser log"
+        assert result.returncode == 0, "Browser flow failed: " + browser_failure_summary(
+            (folder / "browser.log").read_text(encoding="utf-8", errors="replace")
+        )
         assert len(provider.requests) == 5
         proof = json.loads((folder / "proof.json").read_text(encoding="utf-8"))
         assert (
