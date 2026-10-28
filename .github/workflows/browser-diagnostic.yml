@@ -1,0 +1,23 @@
+name: browser-launch-diagnostic
+on: [push]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/playwright
+      npm_config_cache: ${{ github.workspace }}/.cache/npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+      - run: npm --prefix frontend ci
+      - run: node frontend/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Launch synthetic browser without application data
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.cache/insightpilot-tmp"
+          export TMPDIR="$GITHUB_WORKSPACE/.cache/insightpilot-tmp"
+          node -e "const {chromium}=require('./frontend/node_modules/playwright'); chromium.launch({headless:true,executablePath:chromium.executablePath()}).then(async b=>{console.log('Browser launch passed');await b.close()}).catch(e=>{console.error(e.message);process.exit(1)})"
