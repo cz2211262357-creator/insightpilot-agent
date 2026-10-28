@@ -14,6 +14,13 @@ from insightpilot.runtime import new_event_loop
 from insightpilot.worker import AnalysisWorker
 
 
+def write_marker(path: Path, content: str) -> None:
+    """Publish a complete test marker atomically in its owned directory."""
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(content, encoding="utf-8")
+    temporary.replace(path)
+
+
 def await_file(path):
     deadline = time.monotonic() + 120
     while not path.exists():
@@ -44,7 +51,8 @@ async def main(args):
                 observations["fault_seen"] = True
                 scope = current_checkpoint_scope()
                 await asyncio.to_thread(
-                    Path(args.fault).write_text,
+                    write_marker,
+                    Path(args.fault),
                     json.dumps(
                         {
                             "pid": os.getpid(),
@@ -53,7 +61,6 @@ async def main(args):
                             "execution_version": scope.fence.execution_version,
                         }
                     ),
-                    encoding="utf-8",
                 )
                 await asyncio.to_thread(await_file, Path(args.release))
             observations["post_fault_attempts"] += 1
@@ -65,7 +72,7 @@ async def main(args):
     if args.fault:
         FencedPostgresSaver.aput_writes = writes
     try:
-        await asyncio.to_thread(Path(args.ready).write_text, str(os.getpid()), encoding="utf-8")
+        await asyncio.to_thread(write_marker, Path(args.ready), str(os.getpid()))
         await asyncio.to_thread(await_file, Path(args.start))
         observations["handled"] = await worker.run_once(args.scope)
         async with pools.postgres["state"].connection() as conn:
@@ -81,9 +88,7 @@ async def main(args):
                 )
             ).fetchone()
         observations["run"] = dict(row)
-        await asyncio.to_thread(
-            Path(args.result).write_text, json.dumps(observations), encoding="utf-8"
-        )
+        await asyncio.to_thread(write_marker, Path(args.result), json.dumps(observations))
     finally:
         FencedPostgresSaver.aput_writes = original
         await pools.close()
