@@ -1,0 +1,71 @@
+name: verify
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/.cache/uv
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/.python
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/playwright
+      npm_config_cache: ${{ github.workspace }}/.cache/npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.16"
+          enable-cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+      - name: Managed paths and locked dependencies
+        run: |
+          source scripts/env.sh "$GITHUB_WORKSPACE"
+          uv sync --all-groups --frozen
+          npm --prefix frontend ci
+          echo "INSIGHTPILOT_WORKSPACE_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          echo "UV_PROJECT_ENVIRONMENT=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
+          echo "PYTHONUTF8=1" >> "$GITHUB_ENV"
+          echo "LANGGRAPH_STRICT_MSGPACK=true" >> "$GITHUB_ENV"
+      - name: Backend and real infrastructure fault gates
+        run: |
+          source scripts/env.sh "$GITHUB_WORKSPACE"
+          uv run ruff check src tests scripts evals
+          uv run ruff format --check src tests scripts evals
+          uv run pytest -q --tb=short
+      - name: API schema and frontend
+        run: |
+          source scripts/env.sh "$GITHUB_WORKSPACE"
+          uv run python -m scripts.export_openapi --workspace-root "$GITHUB_WORKSPACE" --output "$GITHUB_WORKSPACE/docs/openapi.json"
+          npm --prefix frontend run generate:api
+          git diff --exit-code -- docs/openapi.json frontend/src/api/generated/schema.d.ts
+          npm --prefix frontend run test -- --run
+          npm --prefix frontend run typecheck
+          npm --prefix frontend run build
+      - name: Browser gate with actual API Worker MCP and PostgreSQL
+        run: |
+          source scripts/env.sh "$GITHUB_WORKSPACE"
+          node frontend/node_modules/playwright/cli.js install --with-deps chromium
+          export IP_BROWSER_NODE="$(command -v node)"
+          export IP_BROWSER_PLAYWRIGHT="$GITHUB_WORKSPACE/frontend/node_modules/playwright/index.mjs"
+          export IP_BROWSER_EXECUTABLE="$(node -e "console.log(require('./frontend/node_modules/playwright').chromium.executablePath())")"
+          uv run pytest tests/browser/check_workbench.py -q --tb=short
+      - name: Build standalone images
+        run: |
+          docker build -t insightpilot-ci:app .
+          docker build -f frontend/Dockerfile -t insightpilot-ci:web .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-acceptance
+          path: |
+            .cache/insightpilot-verification/controlled-gold.json
+            .cache/insightpilot-verification/worker-capacity-proof.json
+            .cache/insightpilot-verification/worker-recovery-*.json
+            .cache/insightpilot-verification/browser-*/*.png
+          retention-days: 7

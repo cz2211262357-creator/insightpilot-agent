@@ -1,0 +1,158 @@
+[
+  {
+    "sql": "SELECT order_id,paid_amount FROM analysis.orders WHERE status=:status",
+    "expected": "allow"
+  },
+  {
+    "sql": "SELECT COUNT(*) AS total FROM analysis.orders",
+    "expected": "allow"
+  },
+  {
+    "sql": "SELECT * FROM analysis.orders",
+    "expected": "allow"
+  },
+  {
+    "sql": "WITH valid AS (SELECT order_id,paid_amount FROM analysis.orders) SELECT SUM(v.paid_amount) FROM valid v",
+    "expected": "allow"
+  },
+  {
+    "sql": "SELECT o.order_id FROM analysis.orders o WHERE EXISTS(SELECT 1 FROM analysis.aftersales a WHERE a.order_id=o.order_id)",
+    "expected": "allow"
+  },
+  {
+    "sql": "SELECT CASE WHEN paid_amount>0 THEN 'paid' ELSE 'zero' END AS label FROM analysis.orders",
+    "expected": "allow"
+  },
+  {
+    "sql": "SELECT '; DROP TABLE orders' AS safe_label FROM analysis.orders LIMIT 1",
+    "expected": "allow"
+  },
+  {
+    "sql": "SELECT 1; DELETE FROM analysis.orders",
+    "expected": "reject"
+  },
+  {
+    "sql": "WITH x AS(DELETE FROM analysis.orders RETURNING *) SELECT * FROM x",
+    "expected": "reject"
+  },
+  {
+    "sql": "WITH x AS(UPDATE analysis.orders SET paid_amount=0 RETURNING *) SELECT * FROM x",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * INTO public.stolen FROM analysis.orders",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM analysis.orders FOR UPDATE",
+    "expected": "reject"
+  },
+  {
+    "sql": "COPY analysis.orders TO STDOUT",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT pg_sleep(1)",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT set_config('insightpilot.tenant_id','x',true)",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT pg_read_file('/etc/passwd')",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT pg_ls_dir('/')",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT public.untrusted_udf(order_id) FROM analysis.orders",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM pg_catalog.pg_authid",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM information_schema.tables",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM business_private.orders",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM app_state.users",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM graph_checkpoint.checkpoints",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM otherdb.analysis.orders",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT password_hash FROM analysis.orders",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT o.password_hash FROM analysis.orders o",
+    "expected": "reject"
+  },
+  {
+    "sql": "WITH x AS(SELECT password_hash FROM analysis.orders) SELECT * FROM x",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT order_id FROM analysis.orders o JOIN analysis.order_items i ON i.order_id=o.order_id",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT \"Order_Id\" FROM analysis.orders",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM analysis.\"Orders\"",
+    "expected": "reject"
+  },
+  {
+    "sql": "WITH RECURSIVE x AS(SELECT order_id FROM analysis.orders UNION ALL SELECT order_id FROM x) SELECT * FROM x",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM generate_series(1,1000000)",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT 'pg_authid'::regclass",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT '{1,2}'::int[]",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT current_user",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM analysis.orders LIMIT 1001",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM analysis.orders LIMIT (SELECT 1)",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM analysis.orders WHERE order_id=$1",
+    "expected": "reject"
+  },
+  {
+    "sql": "SELECT * FROM analysis.orders UNION SELECT * FROM app_state.users",
+    "expected": "reject"
+  }
+]

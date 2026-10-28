@@ -1,0 +1,45 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const input=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+const {chromium}=await import(pathToFileURL(process.env.INSIGHTPILOT_BROWSER_PLAYWRIGHT).href);
+const browser=await chromium.launch({headless:true,executablePath:process.env.INSIGHTPILOT_BROWSER_EXECUTABLE});
+const proof={page_errors:[],pages:[],two_tab_conflict:0,old_task_waited:false,bar_chart:false,mobile_no_overflow:false,browser:browser.version()};
+const screenshots=async(page,name)=>{await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(60);await page.screenshot({path:path.join(input.folder,name+'.png'),fullPage:true});proof.pages.push(name)};
+try{
+ const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});
+ const page=await context.newPage();page.on('pageerror',e=>proof.page_errors.push(e.message));page.setDefaultTimeout(20000);
+ await page.goto(input.origin+'/login');await page.getByRole('heading',{name:'登录分析工作台'}).waitFor();await screenshots(page,'login');
+ await page.getByLabel('租户 ID',{exact:true}).fill(input.tenant_id);await page.getByLabel('邮箱',{exact:true}).fill(input.email);await page.getByLabel('密码',{exact:true}).fill(input.password);await page.getByRole('button',{name:'进入工作台'}).click();
+ await page.getByRole('heading',{name:'问数工作台',exact:true}).waitFor();await page.locator('.topic-tabs button.active').waitFor();
+ const conversation=await(await page.request.get(input.origin+'/api/v1/conversations/'+input.conversation_id)).json();
+ const titleA=conversation.topics.find(t=>t.topic_id===input.topic_a).title;const titleB=conversation.topics.find(t=>t.topic_id===input.topic_b).title;
+ async function send(question){await page.getByLabel('分析问题',{exact:true}).fill(question);const response=page.waitForResponse(r=>r.url().endsWith('/messages')&&r.request().method()==='POST');await page.getByRole('button',{name:'发送分析',exact:true}).click();const result=await response;assert.equal(result.status(),202);return result.json()}
+ const a=await send('帮我看销售情况');await page.getByLabel('待确认事项',{exact:true}).waitFor();await screenshots(page,'hitl');
+ await page.locator('.topic-tabs').getByRole('button',{name:titleB,exact:true}).click();await page.locator('.topic-tabs button.active').filter({hasText:titleB}).waitFor();
+ const b=await send('同意');await page.getByLabel('待确认事项',{exact:true}).waitFor();
+ const waitingA=await(await page.request.get(input.origin+'/api/v1/runs/'+a.run_id)).json();assert.equal(waitingA.state,'WAITING_INPUT');assert.equal(waitingA.model_used,1);proof.old_task_waited=true;
+ const page2=await context.newPage();page2.on('pageerror',e=>proof.page_errors.push(e.message));let releaseSnapshot=false;
+ const oldSnapshot=await(await page.request.get(input.origin+'/api/v1/conversations/'+input.conversation_id)).json();
+ await page2.route('**/api/v1/conversations/'+input.conversation_id,route=>route.request().method()==='GET'&&!releaseSnapshot?route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(oldSnapshot)}):route.continue());
+ page2.on('response',response=>{if(response.url().endsWith('/activate')&&response.status()===409)releaseSnapshot=true});
+ await page2.goto(input.origin+'/app/workbench');await page2.locator('.topic-tabs button.active').filter({hasText:titleB}).waitFor();
+ await page.locator('.topic-tabs').getByRole('button',{name:titleA,exact:true}).click();await page.locator('.topic-tabs button.active').filter({hasText:titleA}).waitFor();
+ const conflict=page2.waitForResponse(response=>response.url().endsWith('/activate')&&response.request().method()==='POST');await page2.locator('.topic-tabs').getByRole('button',{name:titleA,exact:true}).click();proof.two_tab_conflict=(await conflict).status();assert.equal(proof.two_tab_conflict,409);
+ await page2.locator('.notice.error').filter({hasText:'话题已在另一个页面更新'}).waitFor();await page2.close();
+ await page.getByLabel('确认口径',{exact:true}).fill('统计全部已支付订单实付销售额，按渠道分组');await page.getByRole('button',{name:'提交口径并继续',exact:true}).click();
+ await page.getByText('结论已通过证据校验',{exact:true}).waitFor();await page.locator('.js-plotly-plot').waitFor({timeout:30000});
+ proof.bar_chart=await page.locator('.barlayer').count()>0;assert.ok(proof.bar_chart);
+ await page.getByRole('button',{name:'查看查询与口径',exact:true}).first().click();await page.locator('.sql-detail pre').first().filter({hasText:'SELECT'}).waitFor();await screenshots(page,'workbench-report');
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'导出报告与证据',exact:true}).click();const exported=await download;await exported.saveAs(path.join(input.folder,'exported-report.json'));const report=JSON.parse(fs.readFileSync(path.join(input.folder,'exported-report.json'),'utf8'));assert.equal(report.data_kind,'synthetic');assert.ok(report.report.evidence[0].sha256.length===64);
+ const aDone=await(await page.request.get(input.origin+'/api/v1/runs/'+a.run_id)).json();const bWaiting=await(await page.request.get(input.origin+'/api/v1/runs/'+b.run_id)).json();assert.equal(aDone.state,'SUCCEEDED');assert.equal(bWaiting.state,'WAITING_INPUT');assert.equal(aDone.model_used,4);assert.equal(aDone.query_used,1);
+ await page.getByRole('link',{name:'分析记录',exact:true}).click();await page.getByRole('heading',{name:'分析记录',exact:true}).waitFor();await page.locator('.history-row').filter({hasText:'帮我看销售情况'}).click();await page.getByText('结论已通过证据校验',{exact:true}).waitFor();await screenshots(page,'history');
+ await page.getByRole('link',{name:'指标目录',exact:true}).click();await page.locator('.metric-card').first().waitFor();assert.equal(await page.locator('.metric-card').count(),6);await screenshots(page,'catalog');
+ await page.getByRole('link',{name:'成员管理',exact:true}).click();await page.locator('.members-table tbody tr').first().waitFor();assert.equal(await page.getByText('admin@b.synthetic.invalid',{exact:true}).count(),0);await screenshots(page,'members');
+ await page.setViewportSize({width:390,height:844});await page.getByRole('link',{name:'问数工作台',exact:true}).click();await page.getByRole('heading',{name:'问数工作台',exact:true}).waitFor();await page.getByText('结论已通过证据校验',{exact:true}).waitFor();
+ proof.mobile_no_overflow=await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1);assert.ok(proof.mobile_no_overflow);await screenshots(page,'mobile');
+ await page.getByRole('button',{name:'退出登录',exact:true}).click();await page.getByRole('heading',{name:'登录分析工作台',exact:true}).waitFor();assert.equal((await page.request.get(input.origin+'/api/v1/auth/me')).status(),401);
+ proof.run_a={run_id:a.run_id,model_used:aDone.model_used,query_used:aDone.query_used,state:aDone.state};proof.run_b={run_id:b.run_id,model_used:bWaiting.model_used,state:bWaiting.state};
+ fs.writeFileSync(path.join(input.folder,'proof.json'),JSON.stringify(proof,null,2));
+}finally{await browser.close()}

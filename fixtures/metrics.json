@@ -1,0 +1,93 @@
+{
+  "version": "2026-10-v1",
+  "views": {
+    "orders": [
+      "order_id",
+      "region_id",
+      "channel_id",
+      "customer_ref",
+      "status",
+      "paid_amount",
+      "created_at",
+      "paid_at"
+    ],
+    "order_items": [
+      "item_id",
+      "order_id",
+      "product_id",
+      "quantity",
+      "line_paid_amount"
+    ],
+    "products": [
+      "product_id",
+      "product_name",
+      "category"
+    ],
+    "channels": [
+      "channel_id",
+      "channel_name"
+    ],
+    "regions": [
+      "region_id",
+      "region_name"
+    ],
+    "aftersales": [
+      "aftersale_id",
+      "order_id",
+      "status",
+      "refund_amount",
+      "created_at",
+      "resolved_at"
+    ]
+  },
+  "metrics": [
+    {
+      "metric_id": "paid_sales",
+      "name": "实付销售额",
+      "grain": "order",
+      "definition": "按已支付订单的 paid_amount 求和；status='paid'，按 paid_at 半开区间。不得在连接订单明细后重复求和。",
+      "time_column": "orders.paid_at",
+      "empty_result": "sum returns null; display 暂无数据, never invent 0"
+    },
+    {
+      "metric_id": "net_sales",
+      "name": "净销售额",
+      "grain": "independent order and resolved-refund aggregates",
+      "definition": "本期实付销售额减本期已完成退款额；退款按 resolved_at，包含跨月退款。两项分别汇总后相减，非订单 cohort 利润。缺一项时该项按0，双方无数据标注无数据。",
+      "time_column": "orders.paid_at / aftersales.resolved_at",
+      "empty_result": "both empty: no data; one empty component: coalesce to 0"
+    },
+    {
+      "metric_id": "order_count",
+      "name": "支付订单数",
+      "grain": "order",
+      "definition": "status='paid' 且 paid_at 在半开区间内的订单数；不得用明细条数代替。",
+      "time_column": "orders.paid_at",
+      "empty_result": "count=0"
+    },
+    {
+      "metric_id": "aftersale_rate",
+      "name": "支付订单售后申请率",
+      "grain": "paid-order cohort",
+      "definition": "本期支付订单中曾申请任意状态售后的去重订单数 / 本期支付订单数。按订单支付时间构建 cohort；售后不限创建时间。取消订单排除；分母0返回null。",
+      "time_column": "orders.paid_at",
+      "empty_result": "null if denominator 0; distinct order_id numerator"
+    },
+    {
+      "metric_id": "refund_amount",
+      "name": "已完成退款额",
+      "grain": "aftersale",
+      "definition": "status='resolved'，按 resolved_at 半开区间汇总 refund_amount。未完成/驳回不计，不能把多个退款关联后重复订单金额。",
+      "time_column": "aftersales.resolved_at",
+      "empty_result": "sum returns null; distinguish no rows from amount 0"
+    },
+    {
+      "metric_id": "avg_resolution_hours",
+      "name": "售后平均处理时长",
+      "grain": "resolved aftersale",
+      "definition": "本期完成售后的 avg(extract(epoch from (resolved_at-created_at))/3600)，仅 resolved 且非负时长。",
+      "time_column": "aftersales.resolved_at",
+      "empty_result": "null when none"
+    }
+  ]
+}

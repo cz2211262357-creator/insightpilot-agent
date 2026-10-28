@@ -1,0 +1,32 @@
+DO $roles$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='ip_owner') THEN CREATE ROLE ip_owner NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='ip_state') THEN CREATE ROLE ip_state LOGIN; END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='ip_checkpoint') THEN CREATE ROLE ip_checkpoint LOGIN; END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='ip_reader') THEN CREATE ROLE ip_reader LOGIN; END IF;
+  EXECUTE format('REVOKE CREATE,TEMP ON DATABASE %I FROM PUBLIC', current_database());
+END $roles$;
+ALTER ROLE ip_owner NOLOGIN NOSUPERUSER NOBYPASSRLS;
+ALTER ROLE ip_state NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT;
+ALTER ROLE ip_checkpoint NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT;
+ALTER ROLE ip_reader NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT;
+ALTER ROLE ip_reader SET default_transaction_read_only=on;
+ALTER ROLE ip_reader SET search_path=analysis,pg_catalog;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+CREATE SCHEMA IF NOT EXISTS app_state AUTHORIZATION ip_owner;
+CREATE SCHEMA IF NOT EXISTS graph_checkpoint AUTHORIZATION ip_owner;
+CREATE SCHEMA IF NOT EXISTS business_private AUTHORIZATION ip_owner;
+CREATE SCHEMA IF NOT EXISTS analysis AUTHORIZATION ip_owner;
+REVOKE ALL ON SCHEMA app_state,graph_checkpoint,business_private,analysis FROM PUBLIC;
+GRANT USAGE ON SCHEMA app_state TO ip_state;
+GRANT USAGE ON SCHEMA graph_checkpoint TO ip_checkpoint;
+GRANT USAGE ON SCHEMA analysis TO ip_reader;
+ALTER ROLE ip_state SET idle_in_transaction_session_timeout='5s';
+ALTER ROLE ip_state SET lock_timeout='2s';
+ALTER ROLE ip_state SET statement_timeout='5s';
+ALTER ROLE ip_checkpoint SET idle_in_transaction_session_timeout='5s';
+ALTER ROLE ip_checkpoint SET lock_timeout='2s';
+ALTER ROLE ip_checkpoint SET statement_timeout='5s';
+ALTER ROLE ip_reader SET idle_in_transaction_session_timeout='5s';
+ALTER ROLE ip_reader SET lock_timeout='2s';
+ALTER ROLE ip_reader SET statement_timeout='3s';

@@ -1,0 +1,16 @@
+{
+  "python": "3.12.13",
+  "uv": {
+    "version": "0.11.16",
+    "url": "https://files.pythonhosted.org/packages/8f/38/99627cb995a03389b227ce4b12b08e770565d0aa7850cd0420973194a638/uv-0.11.16-py3-none-win_amd64.whl",
+    "archive_sha256": "e901aafa5007beffafe57bfa44e5e248d99fb5d97036a3718fd65cf9723c5cd3",
+    "binary_sha256": "c5a583d5f1f6d055fc1c32c87d8eceee90edc69a5b9af5da70811befdfc04880"
+  },
+  "images": {
+    "postgres": "postgres:18@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6",
+    "postgres_version": "postgres (PostgreSQL) 18.6 (Debian 18.6-1.pgdg13+2)",
+    "redis": "redis:8.4@sha256:43afe4a9a43080e64dfa29699eef903fc9d54991fe8b03d57237c05bed2a396c",
+    "python": "python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704",
+    "python_version": "Python 3.12.15"
+  }
+}

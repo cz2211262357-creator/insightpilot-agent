@@ -1,0 +1,1 @@
+"""InsightPilot analytics application."""

@@ -1,0 +1,13 @@
+# Readonly query and approval boundaries
+
+Validation parses the complete SQL AST against the current catalog, sets trusted tenant and immutable dataset version only inside a readonly transaction, and performs actual PostgreSQL EXPLAIN FORMAT JSON. Root Total Cost>10000 or Plan Rows>100000 requires explicit human approval. The operator seed step runs ANALYZE so estimates reflect the fixture, not empty-table defaults.
+
+Execution rechecks the catalog/policy fingerprint even before returning cached evidence. A persistent query lease reserves one of four run query attempts before execution. A duplicate in progress returns query_in_progress and does not charge again; a completed duplicate returns the same evidence after current authorization. A recovery may execute a readonly query again and consumes another reservation; no provider/database exactly-once promise is made.
+
+The query transaction uses a separate nonsuperuser reader role, forced RLS, local tenant/version settings, readonly mode and3s total timeout. A named cursor reads batches32, retains at most1000rows/1MiB and explicitly marks truncation. Final JSON size is checked again. A truncated detail set is not a complete aggregate. Decimal values are fixed strings without float conversion; NULL,0,and0.00 stay distinct. UTC instants and explicitly local datetime columns have different types.
+
+After reading, a short state transaction locks current identity and execution authority again. Revocation, cancellation, revision, expired run/query lease or replaced worker rejects the memory result before evidence persistence or return. Evidence is immutable, one logical result per query ticket, and includes a SHA256 of canonical content, dataset version, policy fingerprint and recognized metric aliases.
+
+Human approval requires a completed graph interrupt checkpoint before WAITING_INPUT. Approval binds run/topic/revision,SQL+parameters hash,current identity version,remaining budget and current checkpoint digest. A domain-separated capability is stored as a digest and rederived for an authorized view; its expiry is canonical UTC. Only the dedicated Cookie+CSRF protected approval endpoint consumes it. Approval retains readonly/time/row/byte limits. Ordinary messages, another topic and the model cannot approve a query. Duplicate approval returns the original receipt without requeueing.
+
+Task6 tests deliberately use a marked synthetic checkpoint digest to isolate the query protocol; Task8 must prove the same binding with the official PostgreSQL checkpointer. The fictional dataset is captured through2026-10-07; every paid/refund event is at or before that timestamp. This is an engineering acceptance fixture, not a claim of production business data or online model accuracy.

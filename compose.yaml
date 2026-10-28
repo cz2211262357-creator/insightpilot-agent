@@ -1,0 +1,92 @@
+name: insightpilot
+x-runtime: &runtime
+  build: .
+  image: insightpilot-app:local
+  init: true
+  environment: &environment
+    INSIGHTPILOT_WORKSPACE_ROOT: /workspace
+    INSIGHTPILOT_POSTGRES_STATE_DSN: postgresql://ip_state:${INSIGHTPILOT_PG_STATE_PASSWORD:?Run bootstrap}@postgres:5432/insightpilot
+    INSIGHTPILOT_POSTGRES_CHECKPOINT_DSN: postgresql://ip_checkpoint:${INSIGHTPILOT_PG_CHECKPOINT_PASSWORD:?Run bootstrap}@postgres:5432/insightpilot
+    INSIGHTPILOT_POSTGRES_QUERY_DSN: postgresql://ip_reader:${INSIGHTPILOT_PG_QUERY_PASSWORD:?Run bootstrap}@postgres:5432/insightpilot
+    INSIGHTPILOT_REDIS_URL: redis://:${INSIGHTPILOT_REDIS_PASSWORD:?Run bootstrap}@redis:6379/0
+    INSIGHTPILOT_MODEL_API_KEY: ${INSIGHTPILOT_MODEL_API_KEY:?Set a real model key}
+    INSIGHTPILOT_MODEL_BASE_URL: ${INSIGHTPILOT_MODEL_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+    INSIGHTPILOT_MODEL_NAME: ${INSIGHTPILOT_MODEL_NAME:-qwen-plus}
+    INSIGHTPILOT_MCP_URL: http://mcp:8011/mcp
+    INSIGHTPILOT_MCP_SIGNING_KEY: ${INSIGHTPILOT_MCP_SIGNING_KEY:?Run bootstrap}
+  volumes:
+    - ${INSIGHTPILOT_WORKSPACE_ROOT:?Set WorkspaceRoot}/.data/insightpilot/runtime:/workspace/.data/insightpilot
+    - ${INSIGHTPILOT_WORKSPACE_ROOT:?Set WorkspaceRoot}/.cache/insightpilot-tmp:/workspace/.cache/insightpilot-tmp
+    - ${INSIGHTPILOT_WORKSPACE_ROOT:?Set WorkspaceRoot}/.cache/insightpilot:/workspace/.cache/insightpilot
+  depends_on:
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+services:
+  postgres:
+    image: postgres:18@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+    ports: ["127.0.0.1:5433:5432"]
+    environment:
+      POSTGRES_DB: insightpilot
+      POSTGRES_PASSWORD: ${INSIGHTPILOT_PG_OWNER_PASSWORD:?Run bootstrap}
+    volumes:
+      - ${INSIGHTPILOT_WORKSPACE_ROOT:?Set WorkspaceRoot}/.data/insightpilot/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d insightpilot"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  redis:
+    image: redis:8.4@sha256:43afe4a9a43080e64dfa29699eef903fc9d54991fe8b03d57237c05bed2a396c
+    ports: ["127.0.0.1:6382:6379"]
+    environment:
+      INSIGHTPILOT_REDIS_PASSWORD: ${INSIGHTPILOT_REDIS_PASSWORD:?Run bootstrap}
+    command: ["sh","-c","exec /usr/local/bin/docker-entrypoint.sh redis-server --appendonly yes --requirepass \"$${INSIGHTPILOT_REDIS_PASSWORD}\""]
+    volumes:
+      - ${INSIGHTPILOT_WORKSPACE_ROOT:?Set WorkspaceRoot}/.data/insightpilot/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${INSIGHTPILOT_REDIS_PASSWORD}\" redis-cli ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  api:
+    <<: *runtime
+    profiles: [api]
+    ports: ["127.0.0.1:8010:8010"]
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/api/v1/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+  worker:
+    <<: *runtime
+    profiles: [worker]
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/api/v1/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    command: ["/app/.venv/bin/python","-m","insightpilot.cli","worker","--workspace-root","/workspace","--host","0.0.0.0"]
+  mcp:
+    <<: *runtime
+    profiles: [mcp]
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/api/v1/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    ports: ["127.0.0.1:8011:8011"]
+    command: ["/app/.venv/bin/python","-m","insightpilot.cli","mcp","--workspace-root","/workspace","--host","0.0.0.0"]
+  web:
+    profiles: [web]
+    build: {context: ., dockerfile: frontend/Dockerfile}
+    ports: ["127.0.0.1:8090:8080"]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ && wget -q --spider http://127.0.0.1:8080/api/v1/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 6

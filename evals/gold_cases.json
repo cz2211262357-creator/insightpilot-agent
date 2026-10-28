@@ -1,0 +1,422 @@
+[
+  {
+    "id": "G01",
+    "question": "八月实付销售额",
+    "sql": "SELECT SUM(o.paid_amount) AS paid_sales FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月，已支付订单的实付销售额。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G02",
+    "question": "九月实付销售额",
+    "sql": "SELECT SUM(o.paid_amount) AS paid_sales FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2026-08-31T16:00:00Z",
+      "end": "2026-09-30T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年9月，已支付订单的实付销售额。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G03",
+    "question": "八月支付订单数",
+    "sql": "SELECT COUNT(*) AS order_count FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "order_count"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月，按支付时间统计已支付订单数。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G04",
+    "question": "八月按渠道的销售额",
+    "sql": "SELECT c.channel_name, SUM(o.paid_amount) AS paid_sales FROM analysis.orders o JOIN analysis.channels c ON o.channel_id=c.channel_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz GROUP BY c.channel_name ORDER BY paid_sales DESC,c.channel_name",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2026年8月，按支付时间统计已支付订单实付销售额，按渠道分组。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G05",
+    "question": "八月按地区的销售额",
+    "sql": "SELECT r.region_name, SUM(o.paid_amount) AS paid_sales FROM analysis.orders o JOIN analysis.regions r ON o.region_id=r.region_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz GROUP BY r.region_name ORDER BY paid_sales DESC,r.region_name",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2026年8月，按支付时间统计已支付订单实付销售额，按地区分组。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G06",
+    "question": "八月按品类的销售额",
+    "sql": "SELECT p.category, SUM(i.line_paid_amount) AS paid_sales FROM analysis.orders o JOIN analysis.order_items i ON o.order_id=i.order_id JOIN analysis.products p ON p.product_id=i.product_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz GROUP BY p.category ORDER BY paid_sales DESC,p.category",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2026年8月，按支付时间，已支付订单商品行实付金额，按品类分组。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G07",
+    "question": "八月退款额",
+    "sql": "SELECT SUM(a.refund_amount) AS refund_amount FROM analysis.aftersales a WHERE a.status='resolved' AND a.resolved_at >= %(start)s::timestamptz AND a.resolved_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "refund_amount"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月完成的退款，按售后完成时间统计已解决售后单退款金额。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G08",
+    "question": "九月退款额",
+    "sql": "SELECT SUM(a.refund_amount) AS refund_amount FROM analysis.aftersales a WHERE a.status='resolved' AND a.resolved_at >= %(start)s::timestamptz AND a.resolved_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2026-08-31T16:00:00Z",
+      "end": "2026-09-30T16:00:00Z"
+    },
+    "metric_ids": [
+      "refund_amount"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年9月完成的退款，按售后完成时间统计已解决售后单退款金额。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G09",
+    "question": "八月净销售额",
+    "sql": "SELECT (SELECT COALESCE(SUM(o.paid_amount),0) FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz)-(SELECT COALESCE(SUM(a.refund_amount),0) FROM analysis.aftersales a WHERE a.status='resolved' AND a.resolved_at >= %(start)s::timestamptz AND a.resolved_at < %(end)s::timestamptz) AS net_sales",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales",
+      "refund_amount",
+      "net_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月支付的实付销售额减去同月完成的退款额，按目录净销售额口径。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G10",
+    "question": "八月支付订单售后申请率",
+    "sql": "SELECT COUNT(DISTINCT a.order_id)::numeric / NULLIF(COUNT(DISTINCT o.order_id),0) AS aftersale_rate FROM analysis.orders o LEFT JOIN analysis.aftersales a ON a.order_id=o.order_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "aftersale_rate"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月已支付订单中，发生过售后申请的去重订单占比；申请时间不限。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G11",
+    "question": "八月售后平均处理小时",
+    "sql": "SELECT AVG(EXTRACT(EPOCH FROM (a.resolved_at-a.created_at))/3600) AS avg_resolution_hours FROM analysis.aftersales a WHERE a.status='resolved' AND a.resolved_at >= %(start)s::timestamptz AND a.resolved_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "avg_resolution_hours"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月已解决售后，从创建到解决的平均小时数，按解决时间过滤。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G12",
+    "question": "九月首日支付订单的本地支付时间，逐单列出订单编号与时间",
+    "sql": "SELECT o.order_id, o.paid_at AT TIME ZONE 'Asia/Shanghai' AS paid_local FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz ORDER BY o.order_id",
+    "params": {
+      "start": "2026-08-31T16:00:00Z",
+      "end": "2026-09-01T16:00:00Z"
+    },
+    "metric_ids": [
+      "order_count"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年9月1日已支付订单，逐单列出订单编号与上海时区的本地支付时间。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G13",
+    "question": "八月各日实付销售趋势",
+    "sql": "SELECT DATE_TRUNC('day',o.paid_at AT TIME ZONE 'Asia/Shanghai') AS day, SUM(o.paid_amount) AS paid_sales FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz GROUP BY day ORDER BY day",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月已支付订单实付销售额，按上海时区每日分组。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G14",
+    "question": "八月销售额前三商品",
+    "sql": "SELECT p.product_name,SUM(i.line_paid_amount) AS paid_sales FROM analysis.orders o JOIN analysis.order_items i ON o.order_id=i.order_id JOIN analysis.products p ON p.product_id=i.product_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz GROUP BY p.product_name ORDER BY paid_sales DESC,p.product_name LIMIT 3",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2026年8月，已支付订单商品行实付金额，按商品汇总取前三；同金额按商品名称排序。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G15",
+    "question": "没有订单月份的销售额",
+    "sql": "SELECT SUM(o.paid_amount) AS paid_sales FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2019-12-31T16:00:00Z",
+      "end": "2020-01-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2020年1月，按支付时间统计已支付订单实付销售额；没有记录保留暂无数据。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G16",
+    "question": "没有订单月份的售后率",
+    "sql": "SELECT COUNT(DISTINCT a.order_id)::numeric / NULLIF(COUNT(DISTINCT o.order_id),0) AS aftersale_rate FROM analysis.orders o LEFT JOIN analysis.aftersales a ON a.order_id=o.order_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz",
+    "params": {
+      "start": "2019-12-31T16:00:00Z",
+      "end": "2020-01-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "aftersale_rate"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2020年1月已支付订单中，有售后申请的去重订单占比；分母为零保留暂无数据。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G17",
+    "question": "所有已支付的零元订单",
+    "sql": "SELECT order_id,paid_amount FROM analysis.orders WHERE status='paid' AND paid_amount=0 ORDER BY order_id",
+    "params": {},
+    "metric_ids": [
+      "order_count"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "全部数据中的已支付零元订单，列出订单编号与实付金额。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G18",
+    "question": "各渠道支付客单价",
+    "sql": "SELECT c.channel_name, ROUND(SUM(o.paid_amount)/NULLIF(COUNT(*),0),2) AS average_paid FROM analysis.orders o JOIN analysis.channels c ON c.channel_id=o.channel_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz GROUP BY c.channel_name ORDER BY c.channel_name",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales",
+      "order_count"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2026年8月，按支付时间，各渠道已支付订单实付总额除以支付订单数，四舍五入两位。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G19",
+    "question": "八月支付订单发生跨月退款的金额",
+    "sql": "SELECT SUM(a.refund_amount) AS cohort_refunds FROM analysis.orders o JOIN analysis.aftersales a ON o.order_id=a.order_id WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz AND a.status='resolved' AND a.resolved_at >= %(end)s::timestamptz",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-08-31T16:00:00Z"
+    },
+    "metric_ids": [
+      "refund_amount"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": false,
+    "clarification_answer": "2026年8月支付的订单，在9月及以后截至数据快照已完成的退款金额合计。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  },
+  {
+    "id": "G20",
+    "question": "按本地月份对比八九月销售额",
+    "sql": "SELECT DATE_TRUNC('month',o.paid_at AT TIME ZONE 'Asia/Shanghai') AS month, SUM(o.paid_amount) AS paid_sales FROM analysis.orders o WHERE o.status='paid' AND o.paid_at >= %(start)s::timestamptz AND o.paid_at < %(end)s::timestamptz GROUP BY month ORDER BY month",
+    "params": {
+      "start": "2026-07-31T16:00:00Z",
+      "end": "2026-09-30T16:00:00Z"
+    },
+    "metric_ids": [
+      "paid_sales"
+    ],
+    "synthetic": true,
+    "timezone": "Asia/Shanghai",
+    "requires_clarification": true,
+    "clarification_answer": "2026年8月和9月已支付订单实付销售额，按上海时区本地月份分组对比。",
+    "comparison": {
+      "row_order": "ignored",
+      "column_aliases": "ignored",
+      "numeric_decimals": 6
+    }
+  }
+]
