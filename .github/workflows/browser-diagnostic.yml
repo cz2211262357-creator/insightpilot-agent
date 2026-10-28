@@ -18,6 +18,6 @@ jobs:
       - run: node frontend/node_modules/playwright/cli.js install --with-deps chromium
       - name: Launch synthetic browser without application data
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.cache/insightpilot-tmp"
-          export TMPDIR="$GITHUB_WORKSPACE/.cache/insightpilot-tmp"
+          mkdir -p "$GITHUB_WORKSPACE/.t"
+          export TMPDIR="$GITHUB_WORKSPACE/.t"
           node -e "const {chromium}=require('./frontend/node_modules/playwright'); chromium.launch({headless:true,executablePath:chromium.executablePath()}).then(async b=>{console.log('Browser launch passed');await b.close()}).catch(e=>{console.error(e.message);process.exit(1)})"

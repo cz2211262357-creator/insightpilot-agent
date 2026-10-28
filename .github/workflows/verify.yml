@@ -50,6 +50,9 @@ jobs:
       - name: Browser gate with actual API Worker MCP and PostgreSQL
         run: |
           source scripts/env.sh "$GITHUB_WORKSPACE"
+          # Chromium's Unix socket path is limited to 108 bytes; keep this under the workspace.
+          export TMPDIR="$GITHUB_WORKSPACE/.t"
+          mkdir -p "$TMPDIR"
           node frontend/node_modules/playwright/cli.js install --with-deps chromium
           export IP_BROWSER_NODE="$(command -v node)"
           export IP_BROWSER_PLAYWRIGHT="$GITHUB_WORKSPACE/frontend/node_modules/playwright/index.mjs"
